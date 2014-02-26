@@ -1,0 +1,18 @@
+{
+  "manifest_version": 2,
+  "name": "CatchPat",
+  "description": "Catch texture pattern from a image",
+  "version": "1.3",
+  "author": "Oscar Sobrevilla",
+  "app": {
+    "background": {
+      "scripts": ["src/background.js"]
+    }
+  },
+  "permissions": [
+    "clipboardWrite",
+    "clipboardRead",
+    "notifications"
+  ],
+  "icons": { "16": "catchpat-16.png", "128": "catchpat-128.png" }
+}
