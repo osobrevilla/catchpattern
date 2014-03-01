@@ -1,12 +1,17 @@
 (function (win, doc, utils) {        
 
+    function UIElement() {
+        EventEmiter.call(this);
+    };
+    UIElement.prototype = Object.create(EventEmiter.prototype);
+    UIElement.prototype.constructor = UIElement;
 
     /**
      *   DROP AREA
      */
 
     function DropArea(options) {
-        EventEmiter.call(this);
+        UIElement.call(this);
         var p, events = ['dragenter', 'dragover', 'drop', 'dragleave'];
         this.el = utils.dom.create('div');
         this.el.classList.add('drop-area');
@@ -28,7 +33,7 @@
         this.ctx = utils.dom.create('canvas').getContext('2d');
     };
 
-    DropArea.prototype = Object.create(EventEmiter.prototype);
+    DropArea.prototype = Object.create(UIElement.prototype);
     DropArea.prototype.constructor = DropArea;
     DropArea.prototype.handleEvent = function (e) {
         switch (e.type) {
@@ -111,7 +116,7 @@
      */
 
     function Canvas (el, options) {
-        EventEmiter.call(this);
+        UIElement.call(this);
         var p;
         this.el = el;
         this.pointStart = {
@@ -126,7 +131,7 @@
         this.el.addEventListener('mousedown', this, false);
     };
 
-    Canvas.prototype = Object.create(EventEmiter.prototype);
+    Canvas.prototype = Object.create(UIElement.prototype);
     Canvas.prototype.constructor = Canvas;
     Canvas.prototype.handleEvent = function (e) {
         switch (e.type) {
@@ -143,12 +148,14 @@
     };
     Canvas.prototype._mouseMove = function (e) {
         if (this.pressed) {
-            this.tmpArea.resize({
+            var point = {
                 w: e.pageX - this.el.offsetLeft - this.pointStart.x,
                 h: e.pageY - this.el.offsetTop - this.pointStart.y,
                 x: this.pointStart.x,
                 y: this.pointStart.y
-            });
+            };
+            this.tmpArea.resize(point);
+            this.fire('drawing', point);
         }
     };
     Canvas.prototype._mouseDown = function (e) {
@@ -167,7 +174,7 @@
     Canvas.prototype._mouseUp = function (e) {
         this.pressed = false;
         if (this.tmpArea) {
-            this.fire('draw', this.tmpArea.point);
+            this.fire('drawend', this.tmpArea.point);
             this.tmpArea.destroy();
         }
         this.tmpArea = null;
@@ -187,12 +194,12 @@
      */
 
     function PreviewArea() {
-        EventEmiter.call(this);
+        UIElement.call(this);
         this.el = utils.dom.create('div');
-        this.el.classList.add('preview-area')
+        this.el.classList.add('preview-area');
     };
 
-    PreviewArea.prototype = Object.create(EventEmiter.prototype);
+    PreviewArea.prototype = Object.create(UIElement.prototype);
     PreviewArea.prototype.constructor = PreviewArea;
     PreviewArea.prototype.setPattern = function (url) {
         utils.dom.css(this.el, {
@@ -205,9 +212,11 @@
      */
 
     function Area (point, options) {
-        EventEmiter.call(this);
+        UIElement.call(this);
         var p;
-        this.options = {};
+        this.options = {
+            hadlers: 'all'
+        };
         this.point = utils.extend({}, point);
         this.el = utils.dom.create('div');
         this.el.classList.add('area');
@@ -223,9 +232,12 @@
         utils.dom.css(this.el, this._toCSS(this.point));
         for (p in options)
             this.options[p] = options[p];
+
+        this.rHandlers = [];
+        
     };
 
-    Area.prototype = Object.create(EventEmiter.prototype);
+    Area.prototype = Object.create(UIElement.prototype);
     Area.prototype.constructor = Area;
     Area.prototype.handleEvent = function (e) {
         switch (e.type) {
@@ -260,9 +272,8 @@
             x: e.clientX - this.el.parentNode.offsetLeft - this.catchPoint.x,
             y: e.clientY - this.el.parentNode.offsetTop - this.catchPoint.y
         });
-
         utils.dom.css(this.el, this._toCSS(this.point));
-        this.fire('move');
+        this.fire('move', this.point);
     };
 
     Area.prototype._mouseUp = function (e) {
@@ -287,6 +298,7 @@
 
     Area.prototype.ready = function () {
         this.el.classList.add('area-ready');
+        this._createHandler('se');
     };
 
     Area.prototype.size = function (point, units) {
@@ -307,6 +319,76 @@
         this.el = null;
     };
 
+    Area.prototype._createHandler = function (type) {
+        var rh = new ResizeHandler(type);
+        this.rHandlers.push(rh);
+        this.el.appendChild(rh.el);
+    };
+
+    
+
+
+    function ResizeHandler (type) {
+        UIElement.call(this);
+        this.el = utils.dom.create('span');
+        this.el.classList.add('rh');
+        this.el.classList.add('rh-' + type);
+        this.el.addEventListener('mousedown', this, false);
+    }
+
+    ResizeHandler.prototype = Object.create(UIElement.prototype);
+    ResizeHandler.prototype.constructor = ResizeHandler;
+    ResizeHandler.prototype.handleEvent = function (e) {
+        switch (e.type) {
+            case 'mousedown':
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.button > 0)
+                    return;
+                this._mouseDown(e);
+                this.el.classList.add('rh-move');
+                break;
+            case 'mouseup':
+                this._mouseUp(e);
+                this.el.classList.remove('rh-move');
+                break;
+            case 'mousemove':
+                this._mouseMove(e);
+                break;
+            }
+    };
+
+    Area.prototype._mouseDown = function (e) {
+        this.catchPoint = {
+            x: e.offsetX == undefined? e.layerX : e.offsetX,
+            y: e.offsetY == undefined? e.layerY : e.offsetY
+        };
+        this.el.parentNode.addEventListener('mousemove', this, false);
+        this.el.parentNode.addEventListener('mouseup', this, false);
+    };
+
+    Area.prototype._mouseMove = function (e) {
+        this.point = utils.extend(this.point, {
+            x: e.clientX - this.el.parentNode.offsetLeft - this.catchPoint.x,
+            y: e.clientY - this.el.parentNode.offsetTop - this.catchPoint.y
+        });
+        utils.dom.css(this.el, this._toCSS(this.point));
+        this.fire('move', this.point);
+    };
+
+    Area.prototype._mouseUp = function (e) {
+        this.catchPoint = {
+            x: 0,
+            y: 0
+        };
+        this.el.parentNode.removeEventListener('mouseup', this, false);
+        this.el.parentNode.removeEventListener('mousemove', this, false);
+        this.fire('select');
+    };
+    
+
+    ResizeHandler.SOUTH_EAST = 'se';
+    
 
 
     doc.addEventListener('DOMContentLoaded', function () {
@@ -318,7 +400,8 @@
             inputHeight,
             onChangeSize,
             btnDownload,
-            currentArea = null;
+            coords,
+            currentArea;
         
         function updateFigure() {
             var figure = this;
@@ -330,23 +413,32 @@
                 btnDownload.download = "frag-" + (new Date()).getTime() + ".jpg";
                 btnDownload.dataset.downloadurl = ['jpg', btnDownload.download, btnDownload.href].join(':');
             }, 50);
-        };
+        }
 
-        function resizeArea(point){
+        function updateCoords (point){
+            coords.innerHTML = 'x:' + point.x + ' y: ' + point.y;
+        }
+
+        function onDrawing(e, point){
             inputWidth.value = point.w;
             inputHeight.value = point.h;
-        };
+            updateCoords(point);
+        }
 
         function selectArea(){ 
             currentArea = this;
             inputWidth.value = this.point.w;
             inputHeight.value = this.point.h;  
-        };
+        }
 
-        function onDraw(e, point) {
-            var area = new Area(point)
-                    .on('resize', resizeArea)
-                    .on('move', updateFigure)
+        function onDragArea (e, point){
+            updateCoords(point);   
+            updateFigure.call(this);
+        }
+
+        function onDrawEnd(e, point) {
+            var area = new Area(point, { hadlers: 'se' })
+                    .on('move', onDragArea)
                     .on('select', selectArea);
                 
             dropArea.addArea(area);
@@ -354,7 +446,7 @@
             inputWidth.value = point.w;
             inputHeight.value = point.h;
             updateFigure.call(area);  
-        };
+        }
 
         function onChangeSize() {
             if (currentArea) {
@@ -364,17 +456,19 @@
                 });
                 updateFigure.call(currentArea);
             }
-        };
+        }
 
         dropArea = new DropArea();
         
         canvas = new Canvas(dropArea.el)
-                    .on('draw', onDraw);
+                    .on('drawend', onDrawEnd)
+                    .on('drawing', onDrawing);
 
         previewArea = new PreviewArea();
 
         inputWidth = utils.dom('input-width');
         inputHeight = utils.dom('input-height');
+        coords = utils.dom('coords');
         btnDownload = utils.dom('download'); 
         inputWidth.addEventListener('change', onChangeSize, false);
         inputHeight.addEventListener('change', onChangeSize, false);
