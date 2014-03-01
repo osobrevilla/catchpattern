@@ -358,7 +358,7 @@
             }
     };
 
-    Area.prototype._mouseDown = function (e) {
+    ResizeHandler.prototype._mouseDown = function (e) {
         this.catchPoint = {
             x: e.offsetX == undefined? e.layerX : e.offsetX,
             y: e.offsetY == undefined? e.layerY : e.offsetY
@@ -367,7 +367,7 @@
         this.el.parentNode.addEventListener('mouseup', this, false);
     };
 
-    Area.prototype._mouseMove = function (e) {
+    ResizeHandler.prototype._mouseMove = function (e) {
         this.point = utils.extend(this.point, {
             x: e.clientX - this.el.parentNode.offsetLeft - this.catchPoint.x,
             y: e.clientY - this.el.parentNode.offsetTop - this.catchPoint.y
@@ -376,7 +376,7 @@
         this.fire('move', this.point);
     };
 
-    Area.prototype._mouseUp = function (e) {
+    ResizeHandler.prototype._mouseUp = function (e) {
         this.catchPoint = {
             x: 0,
             y: 0
