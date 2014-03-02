@@ -387,21 +387,16 @@
     };
 
     ResizeCorner.prototype._mouseDown = function (e) {
-        this.oStartPos = {
-            x: e.pageX,
-            y: e.pageY,
-        }
+        this.oStartPos = {x: e.pageX, y: e.pageY };
         this.figure.el.parentNode.addEventListener('mousemove', this, false);
         this.figure.el.parentNode.addEventListener('mouseup', this, false);
     };
 
     ResizeCorner.prototype._mouseMove = function (e) {
-        
         var moved = {
             x: (e.pageX - this.oStartPos.x) || 0,
             y: (e.pageY - this.oStartPos.y) || 0
         };
-
         this.oStartPos.x = e.pageX;
         this.oStartPos.y = e.pageY;
         
@@ -412,10 +407,8 @@
     };
 
     ResizeCorner.prototype._mouseUp = function (e) {
-      
         this.figure.el.parentNode.removeEventListener('mouseup', this, false);
         this.figure.el.parentNode.removeEventListener('mousemove', this, false);
-        this.fire('select');
     };    
 
     ResizeCorner.SOUTH_EAST = 'se';
