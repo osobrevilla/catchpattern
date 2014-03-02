@@ -263,7 +263,7 @@
 
 
     Figure.prototype._createHandler = function (type) {
-        var rh = new ResizeHandler(type, this);
+        var rh = new ResizeCorner(type, this);
         this.rHandlers.push(rh);
         this.el.appendChild(rh.el);
     };
@@ -348,13 +348,13 @@
     Rect.prototype.resize = function (point, units) {
         this.point = utils.extend(this.point, point);
         utils.dom.css(this.el, this._toCSS(this.point, units));
-        this.fire('resize', point);
+        this.fire('resize', this.point);
     };
 
     
 
 
-    function ResizeHandler (type, figure) {
+    function ResizeCorner (type, figure) {
         UIElement.call(this);
         this.figure = figure;
         this.el = utils.dom.create('div');
@@ -365,9 +365,9 @@
         this.area = null;
     }
 
-    ResizeHandler.prototype = Object.create(UIElement.prototype);
-    ResizeHandler.prototype.constructor = ResizeHandler;
-    ResizeHandler.prototype.handleEvent = function (e) {
+    ResizeCorner.prototype = Object.create(UIElement.prototype);
+    ResizeCorner.prototype.constructor = ResizeCorner;
+    ResizeCorner.prototype.handleEvent = function (e) {
         switch (e.type) {
             case 'mousedown':
                 e.stopPropagation();
@@ -386,7 +386,7 @@
             }
     };
 
-    ResizeHandler.prototype._mouseDown = function (e) {
+    ResizeCorner.prototype._mouseDown = function (e) {
         this.oStartPos = {
             x: e.pageX,
             y: e.pageY,
@@ -395,7 +395,7 @@
         this.figure.el.parentNode.addEventListener('mouseup', this, false);
     };
 
-    ResizeHandler.prototype._mouseMove = function (e) {
+    ResizeCorner.prototype._mouseMove = function (e) {
         
         
         var moved = {
@@ -413,14 +413,14 @@
         });
     };
 
-    ResizeHandler.prototype._mouseUp = function (e) {
+    ResizeCorner.prototype._mouseUp = function (e) {
       
         this.figure.el.parentNode.removeEventListener('mouseup', this, false);
         this.figure.el.parentNode.removeEventListener('mousemove', this, false);
         this.fire('select');
     };    
 
-    ResizeHandler.SOUTH_EAST = 'se';
+    ResizeCorner.SOUTH_EAST = 'se';
     
 
 
@@ -445,7 +445,7 @@
                 btnDownload.href = tail;
                 btnDownload.download = "frag-" + (new Date()).getTime() + ".jpg";
                 btnDownload.dataset.downloadurl = ['jpg', btnDownload.download, btnDownload.href].join(':');
-            }, 50);
+            }, 100);
         }
 
         function updateCoords (point){
@@ -469,11 +469,18 @@
             updateFigure.call(this);
         }
 
+        function onResize(e, point){
+            inputWidth.value = point.w;
+            inputHeight.value = point.h;
+            updateCoords(point);
+            updateFigure.call(this);
+        }
+
         function onDrawEnd(e, point) {
             var rect = new Rect(point, { hadlers: 'se' })
                     .on('move', onDragArea)
                     .on('select', selectArea)
-                    .on ('resize', onDrawing);
+                    .on('resize', onResize);
                 
             dropArea.addArea(rect);
             currentArea = rect;
