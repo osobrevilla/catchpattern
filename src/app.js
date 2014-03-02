@@ -184,10 +184,13 @@
 
     Canvas.prototype.drawArea = function (point) {
         utils.extend(this.pointStart, point);
-        this.tmpArea = new Area(this.pointStart);
+        this.tmpArea = new Rect(this.pointStart);
         this.el.appendChild(this.tmpArea.el);
     };
     
+
+
+
 
     /**
      *   PREVIEW BOX
@@ -207,39 +210,84 @@
         });
     };
 
+
+
+
+
     /**
      *  AREA
      */
 
-    function Area (point, options) {
-        UIElement.call(this);
+    function Figure (point, options) {
         var p;
+        UIElement.call(this);
         this.options = {
             hadlers: 'all'
         };
+        for (p in options)
+            this.options[p] = options[p];
         this.point = utils.extend({}, point);
         this.el = utils.dom.create('div');
         this.el.classList.add('area');
-        // this.el.draggable = true;
         this.id = 'area-id-' + (new Date()).getTime();
-        this.el.addEventListener('mousedown', this, false);
-        this.el.style['-webkit-filter'] = 'invert(0.2)';
-        this.el.style['-moz-filter'] = 'invert(0.2)';
-        this.catchPoint = {
+        this.rHandlers = [];
+        this.point = {
             x: 0,
-            y: 0
+            y: 0,
+            width: 0,
+            height:0 
         };
         utils.dom.css(this.el, this._toCSS(this.point));
-        for (p in options)
-            this.options[p] = options[p];
-
-        this.rHandlers = [];
-        
+        this.el.addEventListener('mousedown', this, false);
     };
 
-    Area.prototype = Object.create(UIElement.prototype);
-    Area.prototype.constructor = Area;
-    Area.prototype.handleEvent = function (e) {
+    Figure.prototype = Object.create(UIElement.prototype);
+    Figure.prototype.constructor = Figure;
+
+    Figure.prototype._toCSS = function (coords, units) {
+        units = units || 'px';
+        return {
+            left: coords.x + units,
+            top: coords.y + units,
+            width: coords.w + units,
+            height: coords.h + units
+        };
+    };
+
+    Figure.prototype.destroy = function () {
+        if (this.el.parentNode)
+            this.el.parentNode.removeChild(this.el);
+        this.el.removeEventListener('click', this, false);
+        this.el = null;
+    };
+
+
+    Figure.prototype._createHandler = function (type) {
+        var rh = new ResizeHandler(type, this);
+        this.rHandlers.push(rh);
+        this.el.appendChild(rh.el);
+    };
+
+
+
+
+
+    /**
+     *  RECT AREA
+     */
+
+    function Rect (point, options) {
+        var p;
+        Figure.apply(this, arguments);
+        this.point = utils.extend({}, point);
+        this.el.style['-webkit-filter'] = 'invert(0.2)';
+        this.el.style['-moz-filter'] = 'invert(0.2)';
+        utils.dom.css(this.el, this._toCSS(this.point));
+    };
+
+    Rect.prototype = Object.create(Figure.prototype);
+    Rect.prototype.constructor = Rect;
+    Rect.prototype.handleEvent = function (e) {
         switch (e.type) {
             case 'mousedown':
                 e.preventDefault();
@@ -258,8 +306,8 @@
                 break;
             }
     };
-    Area.prototype._mouseDown = function (e) {
-        this.catchPoint = {
+    Rect.prototype._mouseDown = function (e) {
+        this.startPoint = {
             x: e.offsetX == undefined? e.layerX : e.offsetX,
             y: e.offsetY == undefined? e.layerY : e.offsetY
         };
@@ -267,17 +315,17 @@
         this.el.parentNode.addEventListener('mouseup', this, false);
     };
 
-    Area.prototype._mouseMove = function (e) {
+    Rect.prototype._mouseMove = function (e) {
         this.point = utils.extend(this.point, {
-            x: e.clientX - this.el.parentNode.offsetLeft - this.catchPoint.x,
-            y: e.clientY - this.el.parentNode.offsetTop - this.catchPoint.y
+            x: e.clientX - this.el.parentNode.offsetLeft - this.startPoint.x,
+            y: e.clientY - this.el.parentNode.offsetTop - this.startPoint.y
         });
         utils.dom.css(this.el, this._toCSS(this.point));
         this.fire('move', this.point);
     };
 
-    Area.prototype._mouseUp = function (e) {
-        this.catchPoint = {
+    Rect.prototype._mouseUp = function (e) {
+        this.startPoint = {
             x: 0,
             y: 0
         };
@@ -286,54 +334,35 @@
         this.fire('select');
     };
 
-    Area.prototype._toCSS = function (coords, units) {
-        units = units || 'px';
-        return {
-            left: coords.x + units,
-            top: coords.y + units,
-            width: coords.w + units,
-            height: coords.h + units
-        };
-    };
 
-    Area.prototype.ready = function () {
+    Rect.prototype.ready = function () {
         this.el.classList.add('area-ready');
         this._createHandler('se');
     };
 
-    Area.prototype.size = function (point, units) {
+    Rect.prototype.size = function (point, units) {
         this.point = utils.extend(this.point, point);
         utils.dom.css(this.el, this._toCSS(this.point, units));
     };
 
-    Area.prototype.resize = function (point, units) {
+    Rect.prototype.resize = function (point, units) {
         this.point = utils.extend(this.point, point);
         utils.dom.css(this.el, this._toCSS(this.point, units));
         this.fire('resize', point);
     };
 
-    Area.prototype.destroy = function () {
-        if (this.el.parentNode)
-            this.el.parentNode.removeChild(this.el);
-        this.el.removeEventListener('click', this, false);
-        this.el = null;
-    };
-
-    Area.prototype._createHandler = function (type) {
-        var rh = new ResizeHandler(type);
-        this.rHandlers.push(rh);
-        this.el.appendChild(rh.el);
-    };
-
     
 
 
-    function ResizeHandler (type) {
+    function ResizeHandler (type, figure) {
         UIElement.call(this);
-        this.el = utils.dom.create('span');
+        this.figure = figure;
+        this.el = utils.dom.create('div');
         this.el.classList.add('rh');
         this.el.classList.add('rh-' + type);
         this.el.addEventListener('mousedown', this, false);
+        this.oStartPos = {};
+        this.area = null;
     }
 
     ResizeHandler.prototype = Object.create(UIElement.prototype);
@@ -341,7 +370,6 @@
     ResizeHandler.prototype.handleEvent = function (e) {
         switch (e.type) {
             case 'mousedown':
-                e.preventDefault();
                 e.stopPropagation();
                 if (e.button > 0)
                     return;
@@ -359,33 +387,38 @@
     };
 
     ResizeHandler.prototype._mouseDown = function (e) {
-        this.catchPoint = {
-            x: e.offsetX == undefined? e.layerX : e.offsetX,
-            y: e.offsetY == undefined? e.layerY : e.offsetY
-        };
-        this.el.parentNode.addEventListener('mousemove', this, false);
-        this.el.parentNode.addEventListener('mouseup', this, false);
+        this.oStartPos = {
+            x: e.pageX,
+            y: e.pageY,
+        }
+        this.figure.el.parentNode.addEventListener('mousemove', this, false);
+        this.figure.el.parentNode.addEventListener('mouseup', this, false);
     };
 
     ResizeHandler.prototype._mouseMove = function (e) {
-        this.point = utils.extend(this.point, {
-            x: e.clientX - this.el.parentNode.offsetLeft - this.catchPoint.x,
-            y: e.clientY - this.el.parentNode.offsetTop - this.catchPoint.y
+        
+        
+        var moved = {
+            x: (e.pageX - this.oStartPos.x) || 0,
+            y: (e.pageY - this.oStartPos.y) || 0
+        };
+
+        this.oStartPos.x = e.pageX;
+        this.oStartPos.y = e.pageY;
+        
+        
+        this.figure.resize({
+            w: this.figure.point.w + moved.x,
+            h: this.figure.point.h + moved.y
         });
-        utils.dom.css(this.el, this._toCSS(this.point));
-        this.fire('move', this.point);
     };
 
     ResizeHandler.prototype._mouseUp = function (e) {
-        this.catchPoint = {
-            x: 0,
-            y: 0
-        };
-        this.el.parentNode.removeEventListener('mouseup', this, false);
-        this.el.parentNode.removeEventListener('mousemove', this, false);
+      
+        this.figure.el.parentNode.removeEventListener('mouseup', this, false);
+        this.figure.el.parentNode.removeEventListener('mousemove', this, false);
         this.fire('select');
-    };
-    
+    };    
 
     ResizeHandler.SOUTH_EAST = 'se';
     
@@ -437,15 +470,16 @@
         }
 
         function onDrawEnd(e, point) {
-            var area = new Area(point, { hadlers: 'se' })
+            var rect = new Rect(point, { hadlers: 'se' })
                     .on('move', onDragArea)
-                    .on('select', selectArea);
+                    .on('select', selectArea)
+                    .on ('resize', onDrawing);
                 
-            dropArea.addArea(area);
-            currentArea = area;
+            dropArea.addArea(rect);
+            currentArea = rect;
             inputWidth.value = point.w;
             inputHeight.value = point.h;
-            updateFigure.call(area);  
+            updateFigure.call(rect);  
         }
 
         function onChangeSize() {
