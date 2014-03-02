@@ -1,10 +1,20 @@
-(function (win, doc, utils) {        
+(function (win, doc, utils) {    
+
+
+
+    /**
+     *   BASIC ELEMENT
+     */
+
 
     function UIElement() {
         EventEmiter.call(this);
     };
     UIElement.prototype = Object.create(EventEmiter.prototype);
     UIElement.prototype.constructor = UIElement;
+
+
+
 
     /**
      *   DROP AREA
@@ -109,6 +119,9 @@
         _area.destroy();
         delete this.areas[area.id];
     };
+
+
+
 
 
     /**
@@ -334,7 +347,6 @@
         this.fire('select');
     };
 
-
     Rect.prototype.ready = function () {
         this.el.classList.add('area-ready');
         this._createHandler('se');
@@ -353,6 +365,10 @@
 
     
 
+
+    /**
+     *  RESIZE CORNER
+     */
 
     function ResizeCorner (type, figure) {
         UIElement.call(this);
@@ -399,7 +415,7 @@
         };
         this.oStartPos.x = e.pageX;
         this.oStartPos.y = e.pageY;
-        
+
         this.figure.resize({
             w: this.figure.point.w + moved.x,
             h: this.figure.point.h + moved.y
