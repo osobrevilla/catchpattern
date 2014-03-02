@@ -397,7 +397,6 @@
 
     ResizeCorner.prototype._mouseMove = function (e) {
         
-        
         var moved = {
             x: (e.pageX - this.oStartPos.x) || 0,
             y: (e.pageY - this.oStartPos.y) || 0
@@ -405,7 +404,6 @@
 
         this.oStartPos.x = e.pageX;
         this.oStartPos.y = e.pageY;
-        
         
         this.figure.resize({
             w: this.figure.point.w + moved.x,
