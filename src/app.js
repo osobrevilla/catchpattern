@@ -16,31 +16,68 @@
 
 
 
+
+    /**
+     *   DROPBOX
+     */
+
+    function SourceArea(el, options) {
+        UIElement.call(this);
+        this.el = el || utils.dom.create('div');
+        this.el.classList.add('source-area');
+        this.ctx = utils.dom.create('canvas').getContext('2d');
+        this.bgURL = null;
+        this.bgImage = new Image();
+        this.currentTailURL = null;
+        this.hasBackground = false;
+    };
+
+    SourceArea.prototype = Object.create(UIElement.prototype);
+    SourceArea.prototype.constructor = SourceArea;
+    SourceArea.prototype.setSource = function (file) {
+        if (this.bgURL) {
+            window.URL.revokeObjectURL(this.bgURL);
+            this.bgURL = null;
+        }
+        this.bgURL = window.URL.createObjectURL(file);
+        this.el.appendChild(this.bgImage);
+        this.bgImage.src = this.bgURL;
+    };
+    SourceArea.prototype.getTail = function (point) {
+        point.x += this.el.scrollLeft;
+        point.y += this.el.scrollTop;
+        if (this.currentTailURL) {
+            window.URL.revokeObjectURL(this.currentTailURL);
+            this.currentTailURL = null;
+        }
+        this.ctx.canvas.width = point.w;
+        this.ctx.canvas.height = point.h;
+        this.ctx.drawImage(this.bgImage, point.x, point.y, point.w, point.h, 0, 0, point.w, point.h);
+        return this.currentTailURL = window.URL.createObjectURL(utils.b64toBlob(this.ctx.canvas.toDataURL().split(',')[1], 'image/jpeg'));
+    };
+
+
+
+
+
     /**
      *   DROP AREA
      */
 
-    function DropArea(options) {
+    function DropArea(el, options) {
         UIElement.call(this);
         var p, events = ['dragenter', 'dragover', 'drop', 'dragleave'];
-        this.el = utils.dom.create('div');
+        this.el = el || utils.dom.create('div');
         this.el.classList.add('drop-area');
         this.options = {
             maxSize: 1024 * 2,
-            mimes: ['image/jpeg', 'image/jpg', 'image/gif', 'image/png'],
-            limit: 1
+            mimes: ['image/jpeg', 'image/jpg', 'image/gif', 'image/png']
         };
 
-        this.areas = {};
-        this.bgURL = null;
-        this.bgImage = new Image();
-        this.currentTailURL = null;
         for (p in options)
             this.options[p] = options[p];
-
         for (p in events)
             this.el.addEventListener(events[p], this, false);
-        this.ctx = utils.dom.create('canvas').getContext('2d');
     };
 
     DropArea.prototype = Object.create(UIElement.prototype);
@@ -73,52 +110,18 @@
         var i, files = e.dataTransfer.files;
         [].forEach.call(files, function (file, i) {
             if (this._isFileValid(file))
-                this.setBackground(file);
+                this.fire('drop', file);
             return;
         }.bind(this));
     };
 
-    DropArea.prototype.setBackground = function (file) {
-        if (this.bgURL) {
-            window.URL.revokeObjectURL(this.bgURL);
-            this.bgURL = null;
-        }
-        this.bgURL = window.URL.createObjectURL(file);
-        utils.dom.css(this.el, {
-            background: 'url(' + this.bgURL + ') no-repeat'
-        });
-        this.bgImage.src = this.bgURL;
+    DropArea.prototype.showTitle = function(v){
+        this.el.style.background = v ? '':'none';
     };
 
-    DropArea.prototype.getTail = function (point) {
-        if (this.currentTailURL) {
-            window.URL.revokeObjectURL(this.currentTailURL);
-            this.currentTailURL = null;
-        }
-        this.ctx.canvas.width = point.w;
-        this.ctx.canvas.height = point.h;
-        this.ctx.drawImage(this.bgImage, point.x, point.y, point.w, point.h, 0, 0, point.w, point.h);
-        return this.currentTailURL = window.URL.createObjectURL(utils.b64toBlob(this.ctx.canvas.toDataURL().split(',')[1], 'image/jpeg'));
-    };
 
-    DropArea.prototype.addArea = function (area) {
-        if (this.options.limit && Object.keys(this.areas).length == this.options.limit) {
-            area.destroy();
-            return false;
-        }
-        area.ready();
-        this.areas[area.id] = area;
-        area.dropArea = this;
-        this.el.appendChild(area.el);
-        this.options.onAddArea && this.options.onAddArea.call(this, area);
-        return true;
-    };
 
-    DropArea.prototype.removeArea = function (area) {
-        var _area = this.areas[area.id];
-        _area.destroy();
-        delete this.areas[area.id];
-    };
+   
 
 
 
@@ -131,21 +134,42 @@
     function Canvas (el, options) {
         UIElement.call(this);
         var p;
-        this.el = el;
+        this.el = el || utils.dom.create('div');
+        this.el.classList.add('canvas-area');
+        this.figures = {};
         this.pointStart = {
             x: 0,
             y: 0
         };
-        this.options = {};
+        this.options = {
+            limit: 1
+        };
         for (p in options)
             this.options[p] = options[p];
         this.pressed = false;
         this.tmpArea = null;
         this.el.addEventListener('mousedown', this, false);
+        this.el.addEventListener('mousemove', this, false);
+        this.enabled = true;
     };
 
     Canvas.prototype = Object.create(UIElement.prototype);
     Canvas.prototype.constructor = Canvas;
+    Canvas.prototype.disable = function(){
+        if (this.enabled === true ){
+            this.el.removeEventListener('mousedown', this, false);
+            this.el.classList.remove('canvas-area');
+        }
+        this.enabled = false;
+    };
+
+    Canvas.prototype.enable = function(){
+        if (this.enabled === false){
+            this.el.addEventListener('mousedown', this, false);
+            this.el.classList.add('canvas-area');
+        }
+        this.enabled = true;
+    };
     Canvas.prototype.handleEvent = function (e) {
         switch (e.type) {
             case 'mousedown':
@@ -159,26 +183,32 @@
                 break;
         }
     };
+
     Canvas.prototype._mouseMove = function (e) {
         if (this.pressed) {
             var point = {
-                w: e.pageX - this.el.offsetLeft - this.pointStart.x,
-                h: e.pageY - this.el.offsetTop - this.pointStart.y,
+                w: e.pageX - this.el.offsetLeft - this.pointStart.x + this.el.scrollLeft,
+                h: e.pageY - this.el.offsetTop - this.pointStart.y + this.el.scrollTop,
                 x: this.pointStart.x,
                 y: this.pointStart.y
             };
-            this.tmpArea.resize(point);
+            this.tmpFig.resize(point);
             this.fire('drawing', point);
+        } else {
+            this.fire('moving', {
+                x: e.pageX, 
+                y: e.pageY
+            });
         }
     };
     Canvas.prototype._mouseDown = function (e) {
-        if (this.tmpArea) {
-            this.tmpArea.destroy();
+        if (this.tmpFig) {
+            this.tmpFig.destroy();
         }
         this.pressed = true;
         this.drawArea({
-            x: e.pageX - this.el.offsetLeft,
-            y: e.pageY - this.el.offsetTop
+            x: e.pageX - this.el.offsetLeft + this.el.scrollLeft,
+            y: e.pageY - this.el.offsetTop + this.el.scrollTop
         });
         this.el.addEventListener('mouseup', this, false);
         this.el.addEventListener('mousemove', this, false);
@@ -186,21 +216,37 @@
 
     Canvas.prototype._mouseUp = function (e) {
         this.pressed = false;
-        if (this.tmpArea) {
-            this.fire('drawend', this.tmpArea.point);
-            this.tmpArea.destroy();
+        if (this.tmpFig) {
+            this.addFigure(this.tmpFig);
+            this.fire('drawend', this.tmpFig);
         }
-        this.tmpArea = null;
+        this.tmpFig = null;
         this.el.removeEventListener('mouseup', this, false);
-        this.el.removeEventListener('mousemove', this, false);
     };
 
     Canvas.prototype.drawArea = function (point) {
         utils.extend(this.pointStart, point);
-        this.tmpArea = new Rect(this.pointStart);
-        this.el.appendChild(this.tmpArea.el);
+        this.tmpFig = new Rect(this.pointStart);
+        this.el.appendChild(this.tmpFig.el);
     };
     
+    Canvas.prototype.addFigure = function (figure) {
+        if (this.options.limit && Object.keys(this.figures).length >= this.options.limit) {
+            figure.destroy();
+            return false;
+        }
+        figure.ready();
+        this.figures[figure.id] = figure;
+        figure.canvas = this;
+        this.el.appendChild(figure.el);
+        this.fire('addfigure', figure);
+        return true;
+    };
+
+    Canvas.prototype.removeFigure = function (figure) {
+        this.figures[figure.id].destroy();
+        delete this.figures[figure.id];
+    };
 
 
 
@@ -315,6 +361,7 @@
                 this.el.classList.remove('area-move');
                 break;
             case 'mousemove':
+                e.stopPropagation();
                 this._mouseMove(e);
                 break;
             }
@@ -330,8 +377,8 @@
 
     Rect.prototype._mouseMove = function (e) {
         this.point = utils.extend(this.point, {
-            x: e.clientX - this.el.parentNode.offsetLeft - this.startPoint.x,
-            y: e.clientY - this.el.parentNode.offsetTop - this.startPoint.y
+            x: e.clientX - this.el.parentNode.offsetLeft - this.startPoint.x + this.canvas.el.scrollLeft,
+            y: e.clientY - this.el.parentNode.offsetTop - this.startPoint.y + this.canvas.el.scrollTop
         });
         utils.dom.css(this.el, this._toCSS(this.point));
         this.fire('move', this.point);
@@ -387,6 +434,7 @@
         switch (e.type) {
             case 'mousedown':
                 e.stopPropagation();
+                e.preventDefault();
                 if (e.button > 0)
                     return;
                 this._mouseDown(e);
@@ -428,26 +476,25 @@
     };    
 
     ResizeCorner.SOUTH_EAST = 'se';
-    
-
 
     doc.addEventListener('DOMContentLoaded', function () {
         
         var tid,
             canvas,
             previewArea,
+            sourceArea,
             inputWidth,
             inputHeight,
             onChangeSize,
             btnDownload,
             coords,
-            currentArea;
+            currentFig,
+            inputMoveBg;
         
-        function updateFigure() {
-            var figure = this;
+        function updateFigure(figure) {
             clearTimeout(tid);
             tid = setTimeout(function () {
-                var tail = dropArea.getTail(figure.point);
+                var tail = sourceArea.getTail(utils.extend({}, figure.point));
                 previewArea.setPattern(tail);
                 btnDownload.href = tail;
                 btnDownload.download = "frag-" + (new Date()).getTime() + ".jpg";
@@ -462,68 +509,88 @@
         function onDrawing(e, point){
             inputWidth.value = point.w;
             inputHeight.value = point.h;
-            updateCoords(point);
         }
 
-        function selectArea(){ 
-            currentArea = this;
-            inputWidth.value = this.point.w;
-            inputHeight.value = this.point.h;  
+        function updateSizes(point){
+            inputWidth.value = point.w;
+            inputHeight.value = point.h;  
         }
 
-        function onDragArea (e, point){
-            updateCoords(point);   
-            updateFigure.call(this);
+        function onMoveFigure(){  
+            updateFigure(this);
+            updateCoords(this.point);
         }
 
         function onResize(e, point){
             inputWidth.value = point.w;
             inputHeight.value = point.h;
-            updateCoords(point);
-            updateFigure.call(this);
+            updateFigure(this);
         }
 
-        function onDrawEnd(e, point) {
-            var rect = new Rect(point, { hadlers: 'se' })
-                    .on('move', onDragArea)
-                    .on('select', selectArea)
-                    .on('resize', onResize);
-                
-            dropArea.addArea(rect);
-            currentArea = rect;
-            inputWidth.value = point.w;
-            inputHeight.value = point.h;
-            updateFigure.call(rect);  
+        function addFigure(e, rect) {
+            rect.on('move', onMoveFigure)
+                .on('resize', onResize)
+                .on('select', function(){
+                    currentFig = this;
+                });
+            currentFig = rect;
+            updateSizes(rect.point);
+            updateFigure(rect);  
         }
 
         function onChangeSize() {
-            if (currentArea) {
-                currentArea.size({
+            if (currentFig) {
+                currentFig.size({
                     w: parseInt(inputWidth.value, 10),
                     h: parseInt(inputHeight.value, 10)
                 });
-                updateFigure.call(currentArea);
+                updateFigure(currentFig);
             }
         }
 
-        dropArea = new DropArea();
-        
-        canvas = new Canvas(dropArea.el)
-                    .on('drawend', onDrawEnd)
-                    .on('drawing', onDrawing);
+        function moveBg() {
+          var move = this.checked;
+            if (move) {
+                canvas.disable();
+                dropArea.el.style.display = "none";
+            } else {
+                canvas.enable();
+                dropArea.el.style.display = "block";
+            }
+        }
+
+        canvas = new Canvas()
+                    .on('addfigure', addFigure)
+                    .on('drawing', onDrawing)
+                    .on('moving', function(e,point){
+                        updateCoords(point);
+                    });
+
+        dropArea = new DropArea(canvas.el)
+                    .on('drop', function(e, file){
+                        if (currentFig)
+                            updateFigure(currentFig);
+                        sourceArea.setSource(file);
+                        dropArea.showTitle(false);
+                        inputMoveBg.removeAttribute('disabled');
+                    });
 
         previewArea = new PreviewArea();
-
+        sourceArea = new SourceArea();
         inputWidth = utils.dom('input-width');
         inputHeight = utils.dom('input-height');
+        inputMoveBg = utils.dom('input-move-bg');
         coords = utils.dom('coords');
         btnDownload = utils.dom('download'); 
         inputWidth.addEventListener('change', onChangeSize, false);
         inputHeight.addEventListener('change', onChangeSize, false);
+        inputMoveBg.addEventListener('change', moveBg, false);
 
         //dropArea.addArea(area);
-        doc.body.appendChild(dropArea.el);
+        
         doc.body.appendChild(previewArea.el);
+        doc.body.appendChild(sourceArea.el);
+        doc.body.appendChild(canvas.el);
     });
 
 }(window, window.document, app.utils));
