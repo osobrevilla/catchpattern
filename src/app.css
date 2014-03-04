@@ -72,6 +72,7 @@ label {cursor: pointer;}
 .source-area > img {
      -webkit-user-select: none; 
      -moz-user-select: none;
+     user-select: none;
      display: block;
 }
 
@@ -88,6 +89,16 @@ label {cursor: pointer;}
     clip: auto;   
 }
 
+.mousescroll {
+    cursor: -webkit-grab;
+    cursor: -moz-grab;
+    overflow: hidden;
+}
+
+.mousescroll-move {
+    cursor: -webkit-grabbing;
+    cursor: -moz-grabbing;
+}
 
 /*.catcher {
     top: 0;

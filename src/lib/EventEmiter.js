@@ -1,5 +1,4 @@
 
-
 function EventEmiter() {
     this._listeners = {};
 };
@@ -32,7 +31,7 @@ EventEmiter.prototype.fire = function (event, args) {
     if (!event.target)
         event.target = this;
 
-    if (!event.type) //falsy
+    if (!event.type)
         throw new Error("Event object missing 'type' property.");
 
     if (this._listeners[event.type] instanceof Array) {
