@@ -1,125 +1,135 @@
 (function (doc, utils) {
 
+    function CatchPattern(){
+        
+        this.tid = null;
+        this.currentFigure = null;
+        this.dom = {};
+        this.dom.inputWidth = utils.dom('input-width');
+        this.dom.inputHeight = utils.dom('input-height');
+        this.dom.inputMoveBg = utils.dom('input-move-bg');
+        this.dom.btnDownload = utils.dom('download');
+        this.dom.coords = utils.dom('coords');
+
+        this.dom.inputWidth.addEventListener('change', this.onChangeSize.bind(this), false);
+        this.dom.inputHeight.addEventListener('change', this.onChangeSize.bind(this), false);
+        this.dom.inputMoveBg.addEventListener('change', this.moveSourceImage.bind(this), false);
+
+        this.uiCanvas = new UICanvas()
+            .on('addfigure', this.onAddFigure.bind(this))
+            .on('drawing', this.onDrawing.bind(this))
+            .on('moving', function (e, point) {
+                this.updateCoords(point);
+            }.bind(this));
+
+        this.dropArea = new UIDropArea(this.uiCanvas.el)
+            .on('drop', this.onAddImage.bind(this));
+
+        this.uiPreviewArea = new UIPreviewArea();
+        this.uiSourceArea  = new UISourceArea();
+        this.uiMouseScroller = new UIMouseScroller(this.uiSourceArea.el)
+            .on('moving', function(){
+                if (this.currentFigure)
+                    this.updatePreview(this.currentFigure);
+            }.bind(this))
+
+        doc.body.appendChild(this.uiPreviewArea.el);
+        doc.body.appendChild(this.uiSourceArea.el);
+        doc.body.appendChild(this.uiCanvas.el);
+    }
+
+
+    CatchPattern.prototype = {
+
+        constructor: CatchPattern,
+
+        updatePreview: function(figure){
+            clearTimeout(this.tid);
+            this.tid = setTimeout(function () {
+                var tail = this.uiSourceArea.getTail(utils.extend({}, figure.point));
+                this.uiPreviewArea.setPattern(tail);
+                this.dom.btnDownload.href = tail;
+                this.dom.btnDownload.download = "frag-" + (new Date()).getTime() + "." + this.uiSourceArea.imgExt;
+                this.dom.btnDownload.dataset.downloadurl = [
+                    this.uiSourceArea.imgExt, 
+                    this.dom.btnDownload.download, 
+                    this.dom.btnDownload.href
+                ].join(':');
+            }.bind(this), 100);
+        },
+
+        updateCoords: function(point){
+            this.dom.coords.innerHTML = 'x:' + point.x + ' y: ' + point.y;
+        },
+
+        updateSizes: function(point){
+            this.dom.inputWidth.value = point.w;
+            this.dom.inputHeight.value = point.h;
+        },
+
+        onAddImage: function(e, file){
+            if (this.currentFigure)
+                this.updateFigure(this.currentFigure);
+            this.uiSourceArea.setSource(file);
+            this.dropArea.showTitle(false);
+            this.dom.inputMoveBg.disabled = false;
+        },        
+
+        onAddFigure: function(e, rect){
+            var that = this;
+             rect.on('move', this.onMoveFigure.bind(this))
+                .on('resize', this.onResize.bind(this))
+                .on('select', function () {
+                    that.currentFigure = this;
+                });
+            this.currentFigure = rect;
+            this.updateSizes(rect.point);
+            this.updatePreview(rect);
+            this.dom.inputWidth.disabled = false;
+            this.dom.inputHeight.disabled = false;
+        },
+
+        onMoveFigure: function(e, point){
+            this.updatePreview(e.target);
+            this.updateCoords(point);
+        },
+
+        onDrawing: function(point){
+            this.updateSizes(point);
+        },
+
+        onResize: function(e, point){
+            this.updateSizes(point);
+            this.updatePreview(e.target);
+        },
+
+        onChangeSize: function(){
+            if (this.currentFigure) {
+                this.currentFigure.size({
+                    w: parseInt(this.dom.inputWidth.value, 10),
+                    h: parseInt(this.dom.inputHeight.value, 10)
+                });
+                this.updatePreview(this.currentFigure);
+            }
+        },
+
+        moveSourceImage: function(){
+            if (this.dom.inputMoveBg.checked) {
+                this.uiCanvas.disable();
+                // this.dropArea.el.style.display = "none";
+            } else {
+                this.uiCanvas.enable();
+                // this.dropArea.el.style.display = "block";
+            }
+            if (this.currentFigure)
+                this.updatePreview(this.currentFigure);
+        }
+    };
+
 
     doc.addEventListener('DOMContentLoaded', function () {
-
-        var tid,
-            uiCanvas,
-            uiPreviewArea,
-            uiSourceArea,
-            uiMouseScroller,
-            inputWidth,
-            inputHeight,
-            onChangeSize,
-            btnDownload,
-            coords,
-            currentFig,
-            inputMoveBg;
-
-        function updateFigure(figure) {
-            clearTimeout(tid);
-            tid = setTimeout(function () {
-                var tail = uiSourceArea.getTail(utils.extend({}, figure.point));
-                uiPreviewArea.setPattern(tail);
-                btnDownload.href = tail;
-                btnDownload.download = "frag-" + (new Date()).getTime() + "." + uiSourceArea.imgExt;
-                btnDownload.dataset.downloadurl = [uiSourceArea.imgExt, btnDownload.download, btnDownload.href].join(':');
-            }, 100);
-        }
-
-        function updateCoords(point) {
-            coords.innerHTML = 'x:' + point.x + ' y: ' + point.y;
-        }
-
-        function onDrawing(e, point) {
-            inputWidth.value = point.w;
-            inputHeight.value = point.h;
-        }
-
-        function updateSizes(point) {
-            inputWidth.value = point.w;
-            inputHeight.value = point.h;
-        }
-
-        function onMoveFigure() {
-            updateFigure(this);
-            updateCoords(this.point);
-        }
-
-        function onResize(e, point) {
-            inputWidth.value = point.w;
-            inputHeight.value = point.h;
-            updateFigure(this);
-        }
-
-        function addFigure(e, rect) {
-            rect.on('move', onMoveFigure)
-                .on('resize', onResize)
-                .on('select', function () {
-                    currentFig = this;
-                });
-            currentFig = rect;
-            updateSizes(rect.point);
-            updateFigure(rect);
-        }
-
-        function onChangeSize() {
-            if (currentFig) {
-                currentFig.size({
-                    w: parseInt(inputWidth.value, 10),
-                    h: parseInt(inputHeight.value, 10)
-                });
-                updateFigure(currentFig);
-            }
-        }
-
-        function moveBg() {
-            var move = this.checked;
-            if (move) {
-                uiCanvas.disable();
-                dropArea.el.style.display = "none";
-            } else {
-                uiCanvas.enable();
-                dropArea.el.style.display = "block";
-            }
-        }
-
-        uiCanvas = new UICanvas()
-            .on('addfigure', addFigure)
-            .on('drawing', onDrawing)
-            .on('moving', function (e, point) {
-                updateCoords(point);
-            });
-
-        dropArea = new UIDropArea(uiCanvas.el)
-            .on('drop', function (e, file) {
-                if (currentFig)
-                    updateFigure(currentFig);
-                uiSourceArea.setSource(file);
-                dropArea.showTitle(false);
-                inputMoveBg.removeAttribute('disabled');
-            });
-
-        uiPreviewArea = new UIPreviewArea();
-        uiSourceArea = new UISourceArea();
-        uiMouseScroller = new UIMouseScroller(uiSourceArea.el);
-
-        inputWidth = utils.dom('input-width');
-        inputHeight = utils.dom('input-height');
-        inputMoveBg = utils.dom('input-move-bg');
-        coords = utils.dom('coords');
-        btnDownload = utils.dom('download');
-        inputWidth.addEventListener('change', onChangeSize, false);
-        inputHeight.addEventListener('change', onChangeSize, false);
-        inputMoveBg.addEventListener('change', moveBg, false);
-
-        doc.body.appendChild(uiPreviewArea.el);
-        doc.body.appendChild(uiSourceArea.el);
-        doc.body.appendChild(uiCanvas.el);
-
+        new CatchPattern();
     });
-
-
 
 
 doc.addEventListener('mouseenter', function () {

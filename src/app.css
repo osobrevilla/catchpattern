@@ -1,4 +1,4 @@
-/*@font-face {
+@font-face {
     font-family: 'Helvetica-Condensed';
     font-style: normal;
     font-weight: normal;
@@ -11,7 +11,7 @@
   font-weight: bold;
   src: url('../fonts/Helvetica-Condensed-Bold.otf') format('opentype');
 }
-*/
+
 
 body, html {
     margin: 0;
@@ -22,13 +22,14 @@ body, html {
 }
 
 body {
-    font: normal 100%/1.5 arial;
+    font: normal 100%/1.5 Helvetica-Condensed;
     padding: 1em;
     box-sizing: border-box;
     -moz-box-sizing: border-box;
     -webkit-font-smoothing: antialiased;
 }
 
+input { font-family: Helvetica-Condensed; }
 label {cursor: pointer;}
 
 .area {
@@ -130,6 +131,8 @@ input[type=number] {
     color: rgba(255,255,255,.4);
 }
 #download {
+    font-family: Helvetica-Condensed;
+    font-weight: bold;
     background: #36A7B3;
     color: #FFF;
     border: 0;

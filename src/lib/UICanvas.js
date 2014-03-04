@@ -33,6 +33,7 @@ UICanvas = (function (utils) {
         if (this.enabled === true) {
             this.el.removeEventListener('mousedown', this, false);
             this.el.classList.remove('canvas-area');
+            this.el.style.pointerEvents = 'none';
         }
         this.enabled = false;
     };
@@ -41,6 +42,7 @@ UICanvas = (function (utils) {
         if (this.enabled === false) {
             this.el.addEventListener('mousedown', this, false);
             this.el.classList.add('canvas-area');
+            this.el.style.pointerEvents = '';
         }
         this.enabled = true;
     };
