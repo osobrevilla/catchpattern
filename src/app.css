@@ -18,7 +18,7 @@ body, html {
     padding: 0;
     height: 100%;
     width: 100%;
-    background: #562080;
+    background: #FFF;
 }
 
 body {
@@ -49,15 +49,12 @@ label {cursor: pointer;}
     cursor: -moz-grabbing;
 }
 
-.area:hover .rh , .rh:hover{
-    visibility: visible;
-}
 
 .drop-area, .source-area {
     position: absolute;
     top: 50px;
     left: 1em;
-    width: 300px;
+    width: 368px;
     bottom: 2em;
 }
 
@@ -81,14 +78,19 @@ label {cursor: pointer;}
 
 
 .preview-area {
-    background: #FFF;
+    visibility: hidden;
+    background: #FFBB6B;
     position: absolute;
     top: 50px;
-    left: 330px;
-    right: 1em;
+    left:calc(378px + 1em);
     bottom: 2em;
-    clip: auto;   
+    right: calc(378px + 1em);
+    clip: auto;
+    -webkit-transition: right 1s ease-in-out;
+    transition: right 1s ease-in-out;
 }
+
+.preview-area-show { visibility: visible; right: 1em; }
 
 .mousescroll {
     cursor: -webkit-grab;
@@ -130,7 +132,8 @@ input[type=number] {
 ::-webkit-input-placeholder {
     color: rgba(255,255,255,.4);
 }
-#download {
+
+.btn {
     font-family: Helvetica-Condensed;
     font-weight: bold;
     background: #36A7B3;
@@ -146,12 +149,14 @@ input[type=number] {
     font-size: .75em;
 }
 
+#download { display: none; }
+
 #coords {
     position: absolute;
     bottom: .25em;
 }
 
-.rh { visibility: hidden; height: 5px; width: 5px; position: absolute; background:rgba(255,255,255,.3); background:rgba(255,255,255,.3);  box-sizing: border-box; }
+.rh { height: 5px; width: 5px; position: absolute; background:rgba(255,255,255,.3); background:rgba(255,255,255,.3);  box-sizing: border-box; }
 
 .rh-se {
     cursor: se-resize;

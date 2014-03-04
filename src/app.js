@@ -1,7 +1,7 @@
 (function (doc, utils) {
 
     function CatchPattern(){
-        
+
         this.tid = null;
         this.currentFigure = null;
         this.dom = {};
@@ -9,11 +9,20 @@
         this.dom.inputHeight = utils.dom('input-height');
         this.dom.inputMoveBg = utils.dom('input-move-bg');
         this.dom.btnDownload = utils.dom('download');
+        this.dom.btnCopyFragment = utils.dom('copy');
         this.dom.coords = utils.dom('coords');
 
         this.dom.inputWidth.addEventListener('change', this.onChangeSize.bind(this), false);
         this.dom.inputHeight.addEventListener('change', this.onChangeSize.bind(this), false);
         this.dom.inputMoveBg.addEventListener('change', this.moveSourceImage.bind(this), false);
+        if (this.dom.btnCopyFragment)
+        this.dom.btnCopyFragment.addEventListener('click', function(e){
+            e.preventDefault();
+             if (this.currentFigure)
+                utils.copyImageToClipboard(
+                    this.uiSourceArea.getTail(utils.extend({}, this.currentFigure.point))
+                );
+        }.bind(this));
 
         this.uiCanvas = new UICanvas()
             .on('addfigure', this.onAddFigure.bind(this))
@@ -49,13 +58,19 @@
                 var tail = this.uiSourceArea.getTail(utils.extend({}, figure.point));
                 this.uiPreviewArea.setPattern(tail);
                 this.dom.btnDownload.href = tail;
-                this.dom.btnDownload.download = "frag-" + (new Date()).getTime() + "." + this.uiSourceArea.imgExt;
+                this.dom.btnDownload.download = 'frag-' + (new Date()).getTime() + '.' + this.uiSourceArea.imgExt;
                 this.dom.btnDownload.dataset.downloadurl = [
                     this.uiSourceArea.imgExt, 
                     this.dom.btnDownload.download, 
                     this.dom.btnDownload.href
                 ].join(':');
             }.bind(this), 100);
+        },
+
+        showPreviewBox: function(){
+            window.resizeTo(750, 380);
+            this.dom.btnDownload.style.display = 'inline-block';
+            this.uiPreviewArea.el.classList.add('preview-area-show')
         },
 
         updateCoords: function(point){
@@ -69,7 +84,7 @@
 
         onAddImage: function(e, file){
             if (this.currentFigure)
-                this.updateFigure(this.currentFigure);
+                this.updatePreview(this.currentFigure);
             this.uiSourceArea.setSource(file);
             this.dropArea.showTitle(false);
             this.dom.inputMoveBg.disabled = false;
@@ -87,6 +102,7 @@
             this.updatePreview(rect);
             this.dom.inputWidth.disabled = false;
             this.dom.inputHeight.disabled = false;
+            this.showPreviewBox();
         },
 
         onMoveFigure: function(e, point){
@@ -132,9 +148,9 @@
     });
 
 
-doc.addEventListener('mouseenter', function () {
-    if (chrome && chrome.app && chrome.app.window)
-        chrome.app.window.current().focus();
-});
+    doc.addEventListener('mouseenter', function () {
+        if (chrome && chrome.app && chrome.app.window)
+            chrome.app.window.current().focus();
+    });
 
 }(window.document, app.utils));

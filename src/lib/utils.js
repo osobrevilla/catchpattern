@@ -33,7 +33,7 @@ app = window.app || {};
     };
 
 	this.copyToClipboard = function (text) {
-	    var area = dom.create('textarea');
+	    var area = this.dom.create('textarea');
 	    area.value = text;
 	    doc.body.appendChild(area);
 	    area.unselectable = "off";
@@ -42,6 +42,25 @@ app = window.app || {};
 	    doc.execCommand("Copy");
 	    doc.body.removeChild(area);
 	};
+
+    this.copyImageToClipboard = function (url) {
+        var range, 
+            img = new Image(),
+            div = this.dom.create('div');
+        img.src = url;
+        div.appendChild(img);
+        doc.body.appendChild(div);
+        div.contentEditable = true;
+        if (doc.createRange) {
+          range = doc.createRange();
+          range.selectNodeContents(div);
+          // window.getSelection().removeAllRanges();
+          // window.getSelection().addRange(range);
+          // div.focus();
+          doc.execCommand("Copy");
+        }
+        div.contentEditable = false;
+    };
 
     this.b64toBlob = function (b64Data, contentType, sliceSize) {
         contentType = contentType || '';

@@ -1,10 +1,10 @@
 chrome.app.runtime.onLaunched.addListener(function() {
   mainWindow = chrome.app.window.create('index.html', {
     'bounds': {
-      'width': 750,
-      'height': 380
+      'width': 399,
+      'height': 368
     },
-    'minWidth': 520,
-    'minHeight': 400
+    'minWidth': 368,
+    'minHeight': 368
   });
 });
